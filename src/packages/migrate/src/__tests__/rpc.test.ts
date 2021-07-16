@@ -27,17 +27,12 @@ it('evaluateDataLoss - schema-only-sqlite', async () => {
   })
 
   await expect(result).resolves.toMatchInlineSnapshot(`
-          Object {
-            migrationSteps: Array [
-              CREATE TABLE "Blog" (
-              "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-              "viewCount20" INTEGER NOT NULL
-          ),
-            ],
-            unexecutableSteps: Array [],
-            warnings: Array [],
-          }
-        `)
+Object {
+  migrationSteps: 1,
+  unexecutableSteps: Array [],
+  warnings: Array [],
+}
+`)
   migrate.stop()
 })
 
@@ -53,12 +48,12 @@ it('evaluateDataLoss - existing-db-1-migration', async () => {
   })
 
   await expect(result).resolves.toMatchInlineSnapshot(`
-          Object {
-            migrationSteps: Array [],
-            unexecutableSteps: Array [],
-            warnings: Array [],
-          }
-        `)
+Object {
+  migrationSteps: 0,
+  unexecutableSteps: Array [],
+  warnings: Array [],
+}
+`)
   migrate.stop()
 })
 
@@ -414,13 +409,22 @@ it('devDiagnostic - reset because drift', async () => {
     migrationsDirectoryPath: migrate.migrationsDirectoryPath,
   })
   await expect(result).resolves.toMatchInlineSnapshot(`
-          Object {
-            action: Object {
-              reason: Drift detected: Your database schema is not in sync with your migration history.,
-              tag: reset,
-            },
-          }
-        `)
+Object {
+  action: Object {
+    reason: Drift detected: Your database schema is not in sync with your migration history.
+
+The following is a summary of the differences between the expected database schema given your migrations files, and the actual schema of the database.
+
+It should be understood as the set of changes to get from the expected schema to the actual schema.
+
+[+] Added tables
+  - Blog
+  - _Migration
+,
+    tag: reset,
+  },
+}
+`)
 
   migrate.stop()
 })

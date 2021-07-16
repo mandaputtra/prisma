@@ -21,6 +21,7 @@ import {
   NoSchemaFoundError,
 } from '../utils/errors'
 import { printDatasource } from '../utils/printDatasource'
+import { EngineResults } from '../types'
 
 export class DbPush implements Command {
   public static new(): DbPush {
@@ -111,17 +112,6 @@ You can now remove the ${chalk.red('--preview-feature')} flag.`)
 
     const migrate = new Migrate(schemaPath)
 
-    let wasDatabaseReset = false
-
-    if (args['--force-reset']) {
-      console.info()
-      await migrate.reset()
-      console.info(
-        `The ${dbInfo.dbType} ${dbInfo.schemaWord} "${dbInfo.dbName}" from "${dbInfo.dbLocation}" was successfully reset.`,
-      )
-      wasDatabaseReset = true
-    }
-
     // Automatically create the database if it doesn't exist
     const wasDbCreated = await ensureDatabaseExists('push', true, schemaPath)
     if (wasDbCreated) {
@@ -129,10 +119,32 @@ You can now remove the ${chalk.red('--preview-feature')} flag.`)
       console.info(wasDbCreated)
     }
 
+    let wasDatabaseReset = false
+    if (args['--force-reset']) {
+      console.info()
+      await migrate.reset()
+      if (dbInfo.dbName && dbInfo.dbLocation) {
+        console.info(
+          `The ${dbInfo.dbType} ${dbInfo.schemaWord} "${dbInfo.dbName}" from "${dbInfo.dbLocation}" was successfully reset.`,
+        )
+      } else {
+        console.info(
+          `The ${dbInfo.dbType} ${dbInfo.schemaWord} was successfully reset.`,
+        )
+      }
+      wasDatabaseReset = true
+    }
+
     const before = Date.now()
-    const migration = await migrate.push({
-      force: args['--accept-data-loss'],
-    })
+    let migration: EngineResults.SchemaPush
+    try {
+      migration = await migrate.push({
+        force: args['--accept-data-loss'],
+      })
+    } catch (e) {
+      migrate.stop()
+      throw e
+    }
 
     if (migration.unexecutable && migration.unexecutable.length > 0) {
       const messages: string[] = []
@@ -175,9 +187,15 @@ ${chalk.bold.redBright('All data will be lost.')}
       }
 
       await migrate.reset()
-      console.info(
-        `The ${dbInfo.dbType} ${dbInfo.schemaWord} "${dbInfo.dbName}" from "${dbInfo.dbLocation}" was successfully reset.`,
-      )
+      if (dbInfo.dbName && dbInfo.dbLocation) {
+        console.info(
+          `The ${dbInfo.dbType} ${dbInfo.schemaWord} "${dbInfo.dbName}" from "${dbInfo.dbLocation}" was successfully reset.`,
+        )
+      } else {
+        console.info(
+          `The ${dbInfo.dbType} ${dbInfo.schemaWord} was successfully reset.`,
+        )
+      }
       wasDatabaseReset = true
     }
 
@@ -204,9 +222,7 @@ ${chalk.bold.redBright('All data will be lost.')}
         const confirmation = await prompt({
           type: 'confirm',
           name: 'value',
-          message: `Do you want to ignore the warning(s)? ${chalk.red(
-            'Some data will be lost',
-          )}.`,
+          message: `Do you want to ignore the warning(s)?`,
         })
 
         if (!confirmation.value) {
